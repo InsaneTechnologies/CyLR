@@ -1,3 +1,5 @@
+// DR version of code
+
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -10,7 +12,10 @@ namespace CyLR
     internal static class CollectionPaths
     {
         private static List<string> AllFiles;
+        //private static List<string> WinRecycleFolders;
+        //private static List<string> WinUserFolders;
         private static List<string> tempPaths;
+        //private static List<string> WintempPaths;
 
         private static IEnumerable<string> RunCommand(string OSCommand, string CommandArgs)
         {
@@ -26,73 +31,178 @@ namespace CyLR
                     CreateNoWindow = true
                 }
             };
+            proc.StartInfo.CreateNoWindow = false;
+            proc.StartInfo.UseShellExecute = false;
+            proc.StartInfo.RedirectStandardOutput = true;
             proc.Start();
             while (!proc.StandardOutput.EndOfStream)
             {
                 yield return  proc.StandardOutput.ReadLine();
             };
         }
-        public static List<string> GetPaths(Arguments arguments, List<string> additionalPaths)
+        public static List<string> GetPaths(Arguments arguments, List<string> additionalPaths, bool Usnjrnl, bool Desktop, bool OtherMFT)
         {
+
             var defaultPaths = new List<string>
             {
-                @"%SYSTEMROOT%\SchedLgU.Txt",
-                @"%SYSTEMROOT%\Tasks",
-                @"%SYSTEMROOT%\Prefetch",
-                @"%SYSTEMROOT%\inf\setupapi.dev.log",
-                @"%SYSTEMROOT%\Appcompat\Programs",
-                @"%SYSTEMROOT%\System32\drivers\etc\hosts",
-                @"%SYSTEMROOT%\System32\sru",
-                @"%SYSTEMROOT%\System32\winevt\logs",
-                @"%SYSTEMROOT%\System32\Tasks",
-                @"%SYSTEMROOT%\System32\LogFiles\W3SVC1",
-                @"%SYSTEMROOT%\System32\config\SAM",
-                @"%SYSTEMROOT%\System32\config\SYSTEM",
-                @"%SYSTEMROOT%\System32\config\SOFTWARE",
-                @"%SYSTEMROOT%\System32\config\SECURITY",
-                @"%SYSTEMROOT%\System32\config\SAM.LOG1",
-                @"%SYSTEMROOT%\System32\config\SYSTEM.LOG1",
-                @"%SYSTEMROOT%\System32\config\SOFTWARE.LOG1",
-                @"%SYSTEMROOT%\System32\config\SECURITY.LOG1",
-                @"%SYSTEMROOT%\System32\config\SAM.LOG2",
-                @"%SYSTEMROOT%\System32\config\SYSTEM.LOG2",
-                @"%SYSTEMROOT%\System32\config\SOFTWARE.LOG2",
-                @"%SYSTEMROOT%\System32\config\SECURITY.LOG2",
-                @"%PROGRAMDATA%\Microsoft\Search\Data\Applications\Windows",
-                @"%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs\Startup",
-                @"%SystemDrive%\$Recycle.Bin",
-                @"%SystemDrive%\$LogFile",
-                @"%SystemDrive%\$MFT"
+                $@"{arguments.SystemDrive}\inetpub\logs", // add in IIS logs
+                $@"{arguments.SystemDrive}\ProgramData\Microsoft\Diagnosis\EventTranscript\EventTranscript.db", // added 16.07.2021 based on https://www.kroll.com/en/insights/publications/cyber/forensically-unpacking-eventtranscript
+                $@"{arguments.SystemDrive}\ProgramData\Microsoft\Search\Data\Applications\Windows",
+                $@"{arguments.SystemDrive}\ProgramData\Microsoft\Network\Downloader",
+                $@"{arguments.SystemDrive}\ProgramData\Microsoft\RAC\PublishedData",
+                $@"{arguments.SystemDrive}\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup",
+                $@"{arguments.SystemDrive}\Program Files (x86)\TeamViewer\Connections_incoming.txt",
+                $@"{arguments.SystemDrive}\Program Files\TeamViewer\Connections_incoming.txt",
+                $@"{arguments.SystemDrive}\Windows\Appcompat\Programs\install",
+                $@"{arguments.SystemDrive}\Windows\Appcompat\Programs\Amcache.hve",
+                $@"{arguments.SystemDrive}\Windows\Appcompat\Programs\Amcache.hve.LOG1",
+                $@"{arguments.SystemDrive}\Windows\Appcompat\Programs\Amcache.hve.LOG2",
+                $@"{arguments.SystemDrive}\Windows\Appcompat\Programs\Amcache.hve.tmp.LOG1",
+                $@"{arguments.SystemDrive}\Windows\Appcompat\Programs\Amcache.hve.tmp.LOG2",
+                $@"{arguments.SystemDrive}\Windows\Appcompat\Programs\recentfilecache.bcf",
+                $@"{arguments.SystemDrive}\Windows\System Volume Information\syscache.hve",
+                $@"{arguments.SystemDrive}\Windows\System Volume Information\syscache.hve.LOG1",
+                $@"{arguments.SystemDrive}\Windows\System Volume Information\syscache.hve.LOG2",
+                $@"{arguments.SystemDrive}\Windows\inf\setupapi.dev.log",
+                $@"{arguments.SystemDrive}\Windows\Logs",
+                $@"{arguments.SystemDrive}\Windows\NTDS", // add in collection of Active Directory NTDS folder
+                $@"{arguments.SystemDrive}\Windows\Prefetch",
+                $@"{arguments.SystemDrive}\Windows\SchedLgU.Txt",
+                $@"{arguments.SystemDrive}\Windows\ServiceProfiles\LocalService",
+                $@"{arguments.SystemDrive}\Windows\ServiceProfiles\NetworkService",
+                $@"{arguments.SystemDrive}\Windows\System32\config",
+                $@"{arguments.SystemDrive}\Windows\System32\config\SAM.LOG1",
+                $@"{arguments.SystemDrive}\Windows\System32\config\SAM.LOG2",
+                $@"{arguments.SystemDrive}\Windows\System32\config\SECURITY.LOG1",
+                $@"{arguments.SystemDrive}\Windows\System32\config\SECURITY.LOG2",
+                $@"{arguments.SystemDrive}\Windows\System32\config\SOFTWARE.LOG1",
+                $@"{arguments.SystemDrive}\Windows\System32\config\SOFTWARE.LOG2",
+                $@"{arguments.SystemDrive}\Windows\System32\config\SYSTEM.LOG1",
+                $@"{arguments.SystemDrive}\Windows\System32\config\SYSTEM.LOG2",
+                $@"{arguments.SystemDrive}\Windows\System32\dhcp", // add in collection of DHCP logs and database
+                $@"{arguments.SystemDrive}\Windows\System32\dns", // add in collection of DNS logs and database
+                $@"{arguments.SystemDrive}\Windows\System32\drivers\etc\hosts",
+                $@"{arguments.SystemDrive}\Windows\System32\LogFiles",
+                $@"{arguments.SystemDrive}\Windows\System32\bits.log",
+                $@"{arguments.SystemDrive}\Windows\System32\sru",
+                $@"{arguments.SystemDrive}\Windows\System32\Tasks",
+                $@"{arguments.SystemDrive}\Windows\System32\wbem\Repository",
+                $@"{arguments.SystemDrive}\Windows\System32\winevt\logs",
+                $@"{arguments.SystemDrive}\Windows\Tasks"
             };
-            defaultPaths = defaultPaths.Select(Environment.ExpandEnvironmentVariables).ToList();
 
-      			//This section will attempt to collect files or folder locations under each users profile by pulling their ProfilePath from the registry and adding it in front.
-      			//Add "defaultPaths.Add($@"{user.ProfilePath}" without the quotes in front of the file / path to be collected in each users profile.
-            if (!Platform.IsUnixLike())
+            if(arguments.SystemDrive.Equals("C:") && OtherMFT)
             {
-              var users = FindUsers();
-              foreach (var user in users)
-              {
-                  defaultPaths.Add($@"{user.ProfilePath}\NTUSER.DAT");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Local\Microsoft\Windows\UsrClass.dat");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Roaming\Microsoft\Windows\Recent");
-                  defaultPaths.Add($@"{user.ProfilePath}\NTUSER.DAT");
-                  defaultPaths.Add($@"{user.ProfilePath}\NTUSER.DAT.LOG1");
-                  defaultPaths.Add($@"{user.ProfilePath}\NTUSER.DAT.LOG2");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Local\Microsoft\Windows\UsrClass.dat");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Local\Microsoft\Windows\UsrClass.dat.LOG1");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Local\Microsoft\Windows\UsrClass.dat.LOG2");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Local\Microsoft\Windows\Explorer");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Local\Google\Chrome\User Data\Default\History\");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Local\Microsoft\Windows\WebCache\");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Local\ConnectedDevicesPlatform");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Roaming\Microsoft\Windows\Recent\AutomaticDestinations\");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline");
-                  defaultPaths.Add($@"{user.ProfilePath}\AppData\Roaming\Mozilla\Firefox\Profiles\");
-              }
+                try
+                {
+                    DriveInfo[] allDrives = DriveInfo.GetDrives();
+                    foreach (DriveInfo d in allDrives)
+                    {
+                        if (d.DriveType == DriveType.Fixed && d.DriveFormat == "NTFS")
+                        {
+                            defaultPaths.Add($@"{d.Name}$LogFile");
+                            defaultPaths.Add($@"{d.Name}$MFT");
+                            defaultPaths.Add($@"{d.Name}$secure:$SDS");
+                            defaultPaths.Add($@"{d.Name}$Boot");
+                            if (Usnjrnl)
+                            {
+                                defaultPaths.Add($@"{d.Name}$Extend\$UsnJrnl:$J");
+                                defaultPaths.Add($@"{d.Name}$Extend\$UsnJrnl:$Max");
+                                defaultPaths.Add($@"{d.Name}$Extend\$RmMetadata\$TxfLog\$Tops:$T");
+                            }
+                        }
+                    }
+                }
+                catch (FileNotFoundException)
+                {
+                    // FAIL
+                }
+            } 
+            else 
+            {
+                defaultPaths.Add($@"{arguments.SystemDrive}\$LogFile");
+                defaultPaths.Add($@"{arguments.SystemDrive}\$MFT");
+                defaultPaths.Add($@"{arguments.SystemDrive}\$secure:$SDS");
+                defaultPaths.Add($@"{arguments.SystemDrive}\$Boot");
+                if (Usnjrnl)
+                {
+                    defaultPaths.Add($@"{arguments.SystemDrive}\$Extend\$UsnJrnl:$J");
+                    defaultPaths.Add($@"{arguments.SystemDrive}\$Extend\$UsnJrnl:$Max");
+                    defaultPaths.Add($@"{arguments.SystemDrive}\$Extend\$RmMetadata\$TxfLog\$Tops:$T");
+                }
             }
 
-            if (Platform.IsUnixLike())
+            defaultPaths = defaultPaths.Select(Environment.ExpandEnvironmentVariables).ToList();
+
+            if (!Platform.IsUnixLike())
+            {
+                // adding in option to replace C: with whatever comes from -drive
+                // it's a hack - sue me
+                if (!arguments.SystemDrive.Equals("C:"))
+                {
+                    defaultPaths = defaultPaths.Select(path => arguments.SystemDrive + path.Substring(2)).ToList();
+                }
+
+
+                if (arguments.RecycleBin)
+                {
+                    // Enumerate Recyle Bin -- this is not ready for production yet ...
+                    string RecyclePath = arguments.SystemDrive + "\\$Recycle.Bin\\";
+                    string[] WinRecycleFolders = Directory.GetDirectories(RecyclePath);
+                    foreach (var RecycleBinFolder in WinRecycleFolders)
+                    {
+                        defaultPaths.Add($@"{RecycleBinFolder}\");
+                    }
+                }
+                
+
+                string UserPath = arguments.SystemDrive + "\\Users\\";
+                string[] WinUserFolders = Directory.GetDirectories(UserPath);
+                foreach (var User in WinUserFolders)
+                {
+                    defaultPaths.Add($@"{User}\NTUSER.DAT");
+                    defaultPaths.Add($@"{User}\NTUSER.DAT.LOG1");
+                    defaultPaths.Add($@"{User}\NTUSER.DAT.LOG2");
+                    if(arguments.Desktop)
+                    {
+                        defaultPaths.Add($@"{User}\Desktop");
+                    }
+                    defaultPaths.Add($@"{User}\AppData\Local\Putty.rnd");
+                    defaultPaths.Add($@"{User}\AppData\Local\ConnectedDevicesPlatform");
+                    defaultPaths.Add($@"{User}\AppData\Local\Google\Chrome\User Data");
+                    defaultPaths.Add($@"{User}\AppData\Local\Google\Chrome SxS\User Data");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Edge");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Terminal Service Client\Cache");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\Internet Explorer");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\Cookies");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\Explorer");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\IEDownloadHistory");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\INetCache");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\INetCookies");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\History");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\Temporary Internet Files"); 
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\UsrClass.dat");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\UsrClass.dat.LOG1");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\UsrClass.dat.LOG2");
+                    defaultPaths.Add($@"{User}\AppData\Local\Microsoft\Windows\WebCache");
+                    defaultPaths.Add($@"{User}\AppData\Local\Mozilla\Firefox\Profiles");
+                    defaultPaths.Add($@"{User}\AppData\Local\Packages\Microsoft.MicrosoftEdge_8wekyb3d8bbwe");
+                    defaultPaths.Add($@"{User}\AppData\Roaming\winscp.ini");
+                    defaultPaths.Add($@"{User}\AppData\Roaming\winscp.rnd");
+                    defaultPaths.Add($@"{User}\AppData\Roaming\Google\Chrome\User Data"); // added 03.07.2021 after finding Google Chrome data in Roaming not Local on a case
+                    defaultPaths.Add($@"{User}\AppData\Roaming\Google\Chrome SxS\User Data");                    
+                    defaultPaths.Add($@"{User}\AppData\Roaming\Opera");
+                    defaultPaths.Add($@"{User}\AppData\Roaming\Microsoft\Internet Explorer");
+                    defaultPaths.Add($@"{User}\AppData\Roaming\Microsoft\Windows\Office\Recent");
+                    defaultPaths.Add($@"{User}\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline");
+                    defaultPaths.Add($@"{User}\AppData\Roaming\Microsoft\Windows\Recent");
+                    defaultPaths.Add($@"{User}\AppData\Roaming\Microsoft\Windows\Start Menu");
+                    defaultPaths.Add($@"{User}\AppData\Roaming\Mozilla\Firefox\Profiles");
+                    defaultPaths.Add($@"{User}\AppData\Roaming\TeamViewer");
+                }
+            }
+
+                if (Platform.IsUnixLike())
             {
                 defaultPaths = new List<string> { };
                 tempPaths = new List<string>

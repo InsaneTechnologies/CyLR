@@ -12,27 +12,35 @@ namespace CyLR
         {
             {
                 "-od",
-                "Defines the directory that the zip archive will be created in. Defaults to current working directory.\nUsage: -od <directory path>"
+                "\tDefines the directory that the zip archive will be created in. Defaults to current working directory.\n\t\tUsage: -od <directory path>"
             },
             {
                 "-of",
-                "Defines the name of the zip archive will be created. Defaults to host machine's name.\nUsage: -of <archive name>"
+                "\tDefines the name of the zip archive will be created. Defaults to host machine's name. CyLR will append timestamp after the name and the extension .zip\n\t\tUsage: -of <device-name>"
             },
             {
                 "-c",
-                "Optional argument to provide custom list of artifact files and directories (one entry per line).\nNOTE: Must use full path including drive letter on each line.  MFT can be collected by \"C:$MFT\" or \"D:$MFT\" and so on.\nUsage: -c <path to config file>"
+                "\tOptional argument to provide custom list of artifact files and directories (one entry per line).\n\t\tNOTE: Must use full path including drive letter on each line.\n\t\tMFT can be collected by \"C:$MFT\" or \"D:$MFT\" and so on.\n\t\tUsage: -c <path to config file>"
+            },
+            {
+                "-drive",
+                "\tOptional point collector at a different drive letter for collection.\n\t\tUsage: -drive G:"
+            },
+            {
+                "-recycle",
+                "Include the $Recycle.Bin folder in collection. Default is NO."
             },
             {
                 "-u",
-                "SFTP username"
+                "\tSFTP username"
             },
             {
                 "-p",
-                "SFTP password"
+                "\tSFTP password"
             },
             {
                 "-s",
-                "SFTP Server resolvable hostname or IP address and port. If no port is given then 22 is used by default.  Format is <server name>:<port>\n Usage: -s 8.8.8.8:22"
+                "\tSFTP Server resolvable hostname or IP address and port. If no port is given then 22 is used by default.\n\t\tFormat is <server name>:<port>\n\t\tUsage: -s 8.8.8.8:22"
             },
             {
                 "--dry-run",
@@ -44,7 +52,20 @@ namespace CyLR
             },
             {
                 "-zp",
-                "Uses a password to encrypt the archive file"
+                "\tUses a password to encrypt the archive file"
+            },
+            {
+                "--no-usnjrnl",
+                "Skips collecting $UsnJrnl"
+            },
+            {
+                "--no-othermft",
+                "Skips collecting $MFT and $UsnJrnl from secondary drives"
+            },
+
+            {
+                "--no-desktop",
+                "Skips collecting files from each Users Desktop"
             }
         };
 
@@ -55,7 +76,8 @@ namespace CyLR
         public readonly string CollectionFilePath = ".";
         public readonly List<string> CollectionFiles = null; 
         public readonly string OutputPath = ".";
-        public readonly string OutputFileName = $"{Environment.MachineName}.zip";
+        public readonly string OutputFileName = $"{Environment.MachineName}-{DateTime.Now.ToString("yyyyMMdd-HHmm")}.zip";
+        public readonly string SystemDrive = "C:";
         public readonly bool UseSftp;
         public readonly string UserName = string.Empty;
         public readonly string UserPassword = string.Empty;
@@ -63,6 +85,10 @@ namespace CyLR
         public readonly bool DryRun;
         public readonly bool ForceNative;
         public readonly string ZipPassword;
+        public readonly bool Usnjrnl = true;
+        public readonly bool Desktop = true;
+        public readonly bool RecycleBin = false;
+        public readonly bool OtherMFT = true;
 
         public Arguments(IEnumerable<string> args)
         {
@@ -80,12 +106,17 @@ namespace CyLR
                         HelpRequested = true;
                         argEnum.GetArgumentParameter(ref HelpTopic);
                         break;
-
+                    case "-drive":
+                        SystemDrive = argEnum.GetArgumentParameter();
+                        break;
+                    case "-recycle":
+                        RecycleBin = true;
+                        break;
                     case "-od":
                         OutputPath = argEnum.GetArgumentParameter();
                         break;
                     case "-of":
-                        OutputFileName = argEnum.GetArgumentParameter();
+                        OutputFileName = argEnum.GetArgumentParameter() + "-" + $"{DateTime.Now.ToString("yyyyMMdd-HHmm")}.zip";
                         break;
                     case "-u":
                         UserName = argEnum.GetArgumentParameter();
@@ -103,6 +134,16 @@ namespace CyLR
 
                     case "-zp":
                         ZipPassword = argEnum.GetArgumentParameter();
+                        break;
+
+                    case "--no-usnjrnl":
+                        Usnjrnl = false;
+                        break;
+                    case "--no-desktop":
+                        Desktop = false;
+                        break;
+                    case "--no-othermft":
+                        OtherMFT = false;
                         break;
 
                     case "--force-native":
@@ -151,7 +192,7 @@ namespace CyLR
                 var helpText = new StringBuilder(string.Format(BaseHelpMessage, Version.GetVersion(), AppDomain.CurrentDomain.FriendlyName)).AppendLine();
                 foreach (var command in HelpTopics)
                 {
-                    helpText.AppendLine(command.Key).AppendLine("\t" + command.Value).AppendLine();
+                    helpText.Append(command.Key).Append("\t" + command.Value).AppendLine();
                 }
                 help = helpText.ToString();
             }
