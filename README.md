@@ -118,7 +118,7 @@ The available options are:
         than the primary drive (ie C:)     
 --no-usnjrnl
         Disables collecting $UsnJrnl
--- recycle
+--recycle
         Enables collection of the Recycle Bin
 
 -l
